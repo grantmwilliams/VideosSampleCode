@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections import ChainMap
 from collections.abc import Iterator, Mapping
 from typing import TypeVar, overload
 
@@ -63,6 +64,29 @@ def dict_zip_union(*dicts, fillvalue=None):
     keys = set(dicts[0]).union(*dicts[1:])
     for key in keys:
         yield key, *(d.get(key, fillvalue) for d in dicts)
+
+
+class ZipChainMap(ChainMap):
+    """ ChainMap is Implemented using views of the dictionaries similar to dict.items() """
+
+    def __getitem__(self, key):
+        # Because None is a valid value in a dictionary, we set an empty sentinel object
+        result = _not_found = object()
+        for mapping in self.maps:
+            try:
+                yield mapping[key] # can't use 'key in mapping' with defaultdict
+                result = True
+            except KeyError:
+                pass
+        if result == _not_found:
+            self.__missing__(key) # support subclasses that define __missing__
+
+    @classmethod
+    def zip(cls, *dicts):
+        if not dicts:
+            return
+
+        yield from ((key, *(vals)) for key, vals in cls(*dicts).items())
 
 
 def combined_dict_example():
@@ -132,12 +156,25 @@ def plain_zip_example():
         print(f'{name} has {sub_count} subscribers! Watch here: youtube.com/channel/{cid}')
 
 
+def zip_chain_map_zip_example():
+    names = {"UCaiL2GDNpLYH6Wokkk1VNcg": "mCoding",
+             "UC7_gcs09iThXybpVgjHZ_7g": "PBS Space Time",
+             "UCxHAlbZQNFU2LgEtiqd2Maw": "Cᐩᐩ Weekly With Jason Turner"}
+    sub_counts = {"UCaiL2GDNpLYH6Wokkk1VNcg": 122_000,
+                  "UC7_gcs09iThXybpVgjHZ_7g": 2_630_000,
+                  "UCxHAlbZQNFU2LgEtiqd2Maw": 85_000}
+
+    for cid, name, sub_count in ZipChainMap.zip(names, sub_counts):
+        print(f'{name} has {sub_count} subscribers! Watch here: youtube.com/channel/{cid}')
+
+
 def main() -> None:
     combined_dict_example()
     separate_dicts_example_1()
     plain_zip_example()
     separate_dicts_example_2()
     separate_dicts_example_3()
+    zip_chain_map_zip_example()
 
 
 if __name__ == '__main__':
