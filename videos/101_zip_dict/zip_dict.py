@@ -70,15 +70,15 @@ class ZipChainMap(ChainMap):
     """ ChainMap is Implemented using views of the dictionaries similar to dict.items() """
 
     def __getitem__(self, key):
-        # Because None is a valid value in a dictionary, we set an empty sentinel object
-        result = _not_found = object()
-        for mapping in self.maps:
+        results = []
+        for mappings in self.maps:
             try:
-                yield mapping[key] # can't use 'key in mapping' with defaultdict
-                result = True
+                results.append(mappings[key]) # can't use 'key in mapping' with defaultdict
             except KeyError:
                 pass
-        if result == _not_found:
+        if results:
+            return tuple(results)
+        else:
             self.__missing__(key) # support subclasses that define __missing__
 
     @classmethod
